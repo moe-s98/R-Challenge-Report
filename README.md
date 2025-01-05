@@ -571,6 +571,15 @@ Deploy some workloads to increase the CPU or Memory usage on your nodes.
 Monitor the Auto Scaling Group to verify that the scaling process works and additional EC2 nodes are provisioned.
 CloudWatch Metrics: You can also use AWS CloudWatch to monitor CPU and Memory utilization on your EC2 nodes. You can create CloudWatch alarms to notify you when scaling events occur.
 
+###  Terraform IAC
 
 
+<div>
+<img src="https://github.com/user-attachments/assets/b0657256-11f4-4209-9a83-4930ae8596a9" width=600 height=250>
+<img src="https://github.com/user-attachments/assets/71ded2d0-37bb-43e9-b831-a80440a665d2" width=600 height=250>
+</div>
+
+Terraform Files and .tfstate attached in repo.
+
+Cost 
 
