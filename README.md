@@ -110,7 +110,7 @@ Considering the periodic high traffic load  mentioned in the chalange , I config
   Jenkins PipeLine GROOVY:
 
 ```
-  pipeline {
+ pipeline {
     agent any
 
     environment {
@@ -254,7 +254,8 @@ Considering the periodic high traffic load  mentioned in the chalange , I config
             echo 'There was an error during the pipeline execution.'
         }
     }
-  }
+}
+ 
  ```
 
 ### Dockerization 
@@ -356,5 +357,220 @@ Building Android apps is resource-intensive. Ensure your Docker container has su
 
 Caching:
 Use Docker's caching mechanism effectively by copying package.json first and running npm install before copying the rest of the files.
+
+
+<div>
+<img src="https://github.com/user-attachments/assets/506e35b4-22ba-4f3d-af5e-8aba1d08a4bc" width=600 height=250>
+</div>
+
+### K8'S
+
+ - Using Amazon EKS with eksctl ensures seamless scalability for your React Native app, Laravel backend, and React frontend. With Horizontal Pod Autoscaling, workloads automatically adjust to traffic spikes, 
+   ensuring consistent performance. Cluster Autoscaler dynamically scales worker nodes to match resource demands, reducing costs during low usage.
+   
+ - For each of the three components (backend, frontend, mobile app), you need to create Kubernetes deployment YAML files. These files describe how your containers will be deployed and exposed on EKS.
+
+Backend Deployment.yaml
+
+```
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend-deployment
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: backend
+  template:
+    metadata:
+      labels:
+        app: backend
+    spec:
+      containers:
+      - name: backend
+        image: <dockerhub-user>/backend:latest
+        ports:
+        - containerPort: 80
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend-service
+spec:
+  selector:
+    app: backend
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 80
+  type: LoadBalancer
+```
+
+Frontend Deployment.yaml
+
+```
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend-deployment
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: frontend
+  template:
+    metadata:
+      labels:
+        app: frontend
+    spec:
+      containers:
+      - name: frontend
+        image: <dockerhub-user>/frontend:latest
+        ports:
+        - containerPort: 3000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend-service
+spec:
+  selector:
+    app: frontend
+  ports:
+    - protocol: TCP
+      port: 3000
+      targetPort: 3000
+  type: LoadBalancer
+```
+Mobile App Deployment.yaml
+
+```
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mobile-app-deployment
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: mobile-app
+  template:
+    metadata:
+      labels:
+        app: mobile-app
+    spec:
+      containers:
+      - name: mobile-app
+        image: <dockerhub-user>/mobile-app:latest
+        ports:
+        - containerPort: 8080
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mobile-app-service
+spec:
+  selector:
+    app: mobile-app
+  ports:
+    - protocol: TCP
+      port: 8080
+      targetPort: 8080
+  type: LoadBalancer
+```
+Apply the Kubernetes Configurations
+Once you have your Kubernetes deployment YAML files for backend, frontend, and mobile apps, you can apply them to your EKS cluster using kubectl:
+
+```
+kubectl apply -f backend-deployment.yaml
+kubectl apply -f frontend-deployment.yaml
+kubectl apply -f mobile-app-deployment.yaml
+
+```
+
+### Cluster Autoscaler on EKS
+   Cluster Autoscaler automatically adjusts the size of your Kubernetes cluster based on the resource demands. If the node utilization is high, it will scale out by adding more nodes, and if there's 
+   underutilization, it will scale in by removing nodes.
+
+Steps to Set Up Cluster Autoscaler:
+1- Install Cluster Autoscaler: You can deploy Cluster Autoscaler to your EKS cluster using the following steps:
+
+Download the Cluster Autoscaler YAML file for your EKS version:
+
+```
+wget https://github.com/kubernetes/autoscaler/releases/download/cluster-autoscaler-<version>/cluster-autoscaler-aws.yaml
+Replace <version> with the version that corresponds to your EKS version.
+```
+Edit the cluster-autoscaler-aws.yaml file to set your EKS cluster name:
+
+```
+Copy code
+- --cluster-name=<EKS_CLUSTER_NAME>
+Replace <EKS_CLUSTER_NAME> with your actual EKS cluster name.
+```
+
+Apply the Cluster Autoscaler configuration to your EKS cluster:
+
+```
+kubectl apply -f cluster-autoscaler-aws.yaml
+Set Permissions for Cluster Autoscaler: Ensure the IAM role used by your EKS nodes has the necessary permissions to allow autoscaling. This typically includes autoscaling:DescribeAutoScalingGroups, autoscaling:SetDesiredCapacity, and ec2:DescribeInstances permissions.
+```
+
+If using an IAM role for Service Account (IRSA) with EKS, ensure that the role has the correct trust relationships and policies for the Cluster Autoscaler.
+
+2. Configure Auto Scaling Group (ASG)
+The AWS Auto Scaling Group (ASG) automatically adjusts the number of EC2 instances in your EKS node group based on the scaling policies you define.
+
+To configure auto-scaling based on CPU/Memory utilization:
+
+Set Up an Auto Scaling Group for Your EKS Worker Nodes: When you create an EKS worker node group, ensure that the Auto Scaling Group is set up to handle auto-scaling. AWS will automatically create the Auto Scaling Group when you use eksctl or the EKS management console.
+
+Define Scaling Policies: Define the scaling policies based on CPU utilization or other resource metrics (e.g., Memory utilization).
+
+<div>
+<img src="https://github.com/user-attachments/assets/c6b4dd4a-f6f8-41bf-b227-4a1e99cd04a8" width=600 height=250>
+</div>
+
+
+
+### For example, to scale up when CPU utilization reaches 80%, set a scale-up policy:
+
+```
+ScalingAdjustment: 1
+Cooldown: 300
+MetricType: CPUUtilization
+Threshold: 80
+
+```
+### You can also configure a scale-down policy to reduce the number of nodes when CPU utilization is below a certain threshold, like 50%:
+
+```
+
+ScalingAdjustment: -1
+Cooldown: 300
+MetricType: CPUUtilization
+Threshold: 50
+Enable Metrics Collection: Ensure your EC2 instances are reporting their metrics to CloudWatch. This is crucial for the scaling to function correctly. You can enable CloudWatch monitoring when creating the node group.
+```
+
+3. Connect Cluster Autoscaler with Auto Scaling Group
+The Cluster Autoscaler will monitor the Kubernetes resource utilization and determine when new nodes need to be added. When the resources of a node in your EKS cluster exceed the 80% threshold (for CPU or Memory), Cluster Autoscaler will request the Auto Scaling Group to add more EC2 instances.
+
+4. Verify and Monitor the Setup
+Verify Cluster Autoscaler Logs: After applying the Cluster Autoscaler configuration, check the logs to ensure that the autoscaler is working correctly.
+
+
+```
+kubectl -n kube-system logs deployment/cluster-autoscaler
+```
+
+Test the Scaling:
+
+Deploy some workloads to increase the CPU or Memory usage on your nodes.
+Monitor the Auto Scaling Group to verify that the scaling process works and additional EC2 nodes are provisioned.
+CloudWatch Metrics: You can also use AWS CloudWatch to monitor CPU and Memory utilization on your EC2 nodes. You can create CloudWatch alarms to notify you when scaling events occur.
+
+
 
 
