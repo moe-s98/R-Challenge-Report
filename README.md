@@ -3,7 +3,7 @@
 
 This challenge involves the design and operation of a real-time data platform dedicated to tracking and safeguarding food quality. Our objective is to deliver innovative technical solutions that not only enhance the platform's performance but also ensure its robustness during peak period.
 
-## First solution 
+# First solution 
 
 <div>
   <img src="https://github.com/user-attachments/assets/d63214ea-3486-406b-b722-6e66b7c01b03" >
@@ -581,5 +581,206 @@ CloudWatch Metrics: You can also use AWS CloudWatch to monitor CPU and Memory ut
 
 Terraform Files and .tfstate attached in repo.
 
-Cost 
+## Cost 
+### Below is a detailed cost breakdown and comparison of the two architectures to help you decide the best option. Both setups include EKS, Redis (ElastiCache), DynamoDB, and an Application Load Balancer (ALB), with the difference being the number of Availability Zones (AZs) and EC2 instances.
 
+1. Single Availability Zone Setup
+ - 3 EC2 instances in 1 AZ (t3.medium).
+ - EKS cluster for container orchestration.
+ - ALB, Redis (ElastiCache), and DynamoDB
+   
+   Cost Breakdown
+
+<div>
+<img src="https://github.com/user-attachments/assets/e685198e-8713-46ff-8336-da13d550b2e0">
+</div>
+
+
+
+
+2. Double Availability Zone Setup
+- 6 EC2 instances (3 in each AZ).
+Cost Breakdown
+
+<div>
+<img src="https://github.com/user-attachments/assets/d2468661-1014-4e68-8b9d-b9294ca7ee88">
+</div>
+
+### Recommendation
+ - Single AZ Setup: Cost-effective for smaller workloads and non-critical applications where high availability is not a priority.
+ - Double AZ Setup: Suitable for production-grade environments requiring high fault tolerance and redundancy but incurs additional costs.
+🏁🏁🏁🏁🏁🏁🏁🏁🏁🏁🏁🏁🏁🏁🏁🏁🏁🏁🏁🏁🏁🏁🏁🏁🏁🏁🏁🏁🏁🏁🏁🏁🏁🏁🏁🏁🏁🏁🏁🏁🏁🏁🏁🏁
+
+# Second solution
+
+<div>
+<img src="https://github.com/user-attachments/assets/a75e6259-6cbc-4bc7-b3f8-41fed2d7fe99" width=600 height=250>
+</div>
+
+
+Amazon Fargate is a serverless compute engine for containers that allows you to run containers without managing servers. It automatically provisions and scales the compute resources required to run containerized applications. This project leverages Amazon EKS with Fargate to orchestrate and scale Dockerized applications. It includes a backend built with PHP (Laravel), a frontend developed in React.js, and mobile applications using React Native. The infrastructure is managed via Terraform, with services running in a secure VPC across multiple availability zones. An Application Load Balancer (ALB) is used for traffic distribution, while a Jenkins CI/CD pipeline automates the build, testing, and deployment processes to EKS. The use of Fargate enables automatic scaling and serverless compute for containerized workloads, optimizing cost and performance.
+
+## Project Overview
+
+- The architecture will include:
+
+  - Amazon EKS with Fargate for container orchestration.
+  - ALB (Application Load Balancer) for load balancing between services.
+  - RDS for database management (optional).
+  - Dockerized backend (PHP with Laravel), frontend (React.js), and mobile app (React Native).
+  - Jenkins CI/CD Pipeline to automate the build, test, and deployment processes.
+
+Step 1: Set up Infrastructure with Terraform : .tf in the repo 
+
+Step 2: Create RDS (Optional)
+If you plan to use RDS, configuration for MySQL
+
+Step 3: Kubernetes Deployments (EKS)
+Now that EKS is set up, let's deploy your backend, frontend, and mobile apps using Kubernetes manifests.
+
+Step 4: Jenkins CI/CD Pipeline
+We’ll now create the Jenkins Declarative Pipeline for your project to build, test, and deploy it to EKS.
+
+.groovy
+```
+pipeline {
+    agent any
+    environment {
+        AWS_ACCESS_KEY_ID = credentials('aws-access-key-id')
+        AWS_SECRET_ACCESS_KEY = credentials('aws-secret-access-key')
+        ECR_REPOSITORY = "<AWS_ACCOUNT_ID>.dkr.ecr.us-west-2.amazonaws.com"
+    }
+    stages {
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+        
+        stage('Build Backend Docker Image') {
+            steps {
+                script {
+                    docker.build("backend:latest")
+                }
+            }
+        }
+
+        stage('Push Backend Image to ECR') {
+            steps {
+                script {
+                    sh "aws ecr get-login-password --region us-west-2 | docker login --username AWS --password-stdin $ECR_REPOSITORY"
+                    sh "docker tag backend:latest $ECR_REPOSITORY/backend:latest"
+                    sh "docker push $ECR_REPOSITORY/backend:latest"
+                }
+            }
+        }
+
+        stage('Build Frontend Docker Image') {
+            steps {
+                script {
+                    docker.build("frontend:latest")
+                }
+            }
+        }
+
+        stage('Push Frontend Image to ECR') {
+            steps {
+                script {
+                    sh "docker tag frontend:latest $ECR_REPOSITORY/frontend:latest"
+                    sh "docker push $ECR_REPOSITORY/frontend:latest"
+                }
+            }
+        }
+
+        stage('Deploy to EKS') {
+            steps {
+                script {
+                    sh """
+                        eksctl utils write-kubeconfig --region us-west-2 --cluster production-cluster
+                        kubectl apply -f kubernetes-manifests/backend-deployment.yaml
+                        kubectl apply -f kubernetes-manifests/frontend-deployment.yaml
+                    """
+                }
+            }
+        }
+    }
+    post {
+        always {
+            cleanWs()
+        }
+    }
+}
+```
+Step 5: CI/CD Workflow Overview
+Code Commit: Developers push code to the repository.
+Build: Jenkins fetches the code, builds the Docker images for both backend and frontend.
+Push to ECR: The Docker images are pushed to AWS ECR.
+Deploy to EKS: Jenkins deploys the Docker containers to the Amazon EKS Cluster.
+ALB Load Balancer: The ALB routes traffic to the services running in EKS.
+
+## Conclusion
+Infrastructure: We use Amazon EKS with Fargate to scale our applications automatically. The backend (Laravel), frontend (React), and optional RDS are set up in a secure, scalable environment.
+CI/CD: A Jenkins pipeline automates the process of building, testing, and deploying applications, ensuring a smooth flow from code commit to production.
+
+## Cost 
+
+ - Fargate Costs (EKS):
+  Fargate Tasks (Compute Costs):
+
+  Pricing is based on the CPU and memory resources allocated to each Fargate task.
+  For example, if you use 2 vCPU and 4GB memory per task:
+  2 vCPU x $0.04048/hr = $0.08096/hr
+
+  4GB x $0.004445/hr = $0.01778/hr
+
+  Total per task = $0.09874/hr
+
+  Monthly cost (730 hours) = $72.05/task/month
+
+  Assuming 3 tasks running continuously for a month:
+
+  Total for 3 tasks = $72.05 x 3 = $216.15/month
+
+ - EKS Costs:
+   
+  EKS Cluster Management Fee: $0.10 per hour
+  Hourly cost = $0.10/hr
+  Monthly cost = $0.10 x 730 hours = $73/month
+
+ - Application Load Balancer (ALB):
+
+  Pricing: $0.0225 per LCU (Load Balancer Capacity Unit) hour
+
+  Assuming 5 LCUs used per month = $0.0225 x 5 x 730 hours = $82.125/month
+
+ - Data Transfer Costs:
+   Data transfer costs typically involve outbound data from your application to the internet or other regions. Assuming 100GB of outbound data:
+
+   First 1GB free, then $0.09 per GB
+
+   100GB - 1GB = 99GB x $0.09 = $8.91/month
+
+- Storage (EFS or S3 for Persistent Storage):
+   
+  EFS (Elastic File System): $0.30 per GB/month (assuming 50GB of storage)
+
+  50GB x $0.30 = $15/month
+
+  OR S3: Depending on usage, but assume 50GB storage:
+
+  $0.023 per GB for the first 50TB = $1.15/month
+
+- Total Estimated Monthly Cost:
+
+  Fargate Tasks: $216.15
+
+  EKS Cluster: $73
+  ALB: $82.125
+
+  Data Transfer: $8.91
+
+  Storage (EFS/S3): $15 or $1.15
+
+ Total Cost (Using EFS): $395.185/month
+
+Total Cost (Using S3): $371.35/month
