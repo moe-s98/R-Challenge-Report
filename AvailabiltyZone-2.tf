@@ -55,23 +55,3 @@ resource "aws_instance" "mobile_instance2" {
   }
 }
 
-# 6. New Public Subnet (Optional)
-resource "aws_subnet" "public_subnet3" {
-  vpc_id                  = aws_vpc.main.id
-  cidr_block              = "172.32.3.0/24"
-  availability_zone       = "me-south-1b"
-  map_public_ip_on_launch = true
-  tags = {
-    Name = "Public Subnet 3"
-  }
-}
-
-# 7. New Private Subnet (Optional)
-resource "aws_subnet" "private_subnet3" {
-  vpc_id            = aws_vpc.main.id
-  cidr_block        = "172.32.4.0/24"
-  availability_zone = "me-south-1b"
-  tags = {
-    Name = "Private Subnet 3"
-  }
-}
