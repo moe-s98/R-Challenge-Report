@@ -1,0 +1,48 @@
+# Use a base image with Node.js
+FROM node:16-bullseye
+
+# Install Java (required for Android builds)
+RUN apt-get update && apt-get install -y \
+    openjdk-11-jdk \
+    && apt-get clean
+
+# Set environment variables for Java
+ENV JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64
+ENV PATH=$JAVA_HOME/bin:$PATH
+
+# Install Android SDK and build tools
+RUN mkdir -p /opt/android-sdk && \
+    cd /opt/android-sdk && \
+    curl -o commandlinetools.zip https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip && \
+    unzip commandlinetools.zip -d /opt/android-sdk && \
+    rm commandlinetools.zip
+
+ENV ANDROID_HOME=/opt/android-sdk
+ENV PATH=$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/emulator:$ANDROID_HOME/platform-tools:$ANDROID_HOME/tools:$PATH
+
+# Accept Android SDK licenses
+RUN yes | sdkmanager --licenses
+
+# Install required Android SDK components
+RUN sdkmanager \
+    "platform-tools" \
+    "platforms;android-33" \
+    "build-tools;33.0.2"
+
+# Create app directory
+WORKDIR /app
+
+# Copy package.json and package-lock.json
+COPY package*.json ./
+
+# Install app dependencies
+RUN npm install
+
+# Copy the rest of the app files
+COPY . .
+
+# Build the React Native app
+RUN npm run android
+
+# Default command
+CMD ["npm", "start"]
